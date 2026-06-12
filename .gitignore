@@ -1,0 +1,45 @@
+# ── Secrets ───────────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+env/
+.Python
+
+# ── Databases / caches ────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+redditorakel.db
+
+# ── Generated artifacts ───────────────────────────────────────────────────────
+reports/
+out/
+models_ml/artifacts/runtime_weights.yaml
+models_ml/artifacts/runtime_flags.yaml
+models_ml/artifacts/tuned_weights.yaml
+models_ml/artifacts/calibration_*.json
+
+# ── Tooling ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/
+.DS_Store
+
+# ── Claude Cowork: SessionStart-Hook marker (regenerated per container) ───────
+.claude/.bootstrapped
+.claude/settings.local.json

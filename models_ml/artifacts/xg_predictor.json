@@ -1,0 +1,42 @@
+{
+  "model": "ridge",
+  "trained_on": 129,
+  "cv_mae_home": 1.0919,
+  "cv_mae_away": 1.1973,
+  "home_coeffs": {
+    "elo_delta": -0.00500591336026644,
+    "home_avg_xg": 0.24045941535836354,
+    "away_avg_xg": -0.6258953473569939,
+    "home_avg_xg_conceded": 0.03311388557191869,
+    "away_avg_xg_conceded": 0.32514653248610115,
+    "home_form_pts": 0.13186974996242365,
+    "away_form_pts": -0.1027609577837179,
+    "home_sentiment": 0.0,
+    "away_sentiment": 0.0,
+    "home_momentum": 0.0,
+    "away_momentum": 0.0,
+    "home_advantage": 0.0,
+    "venue_altitude_m": 0.0,
+    "rest_delta": 0.0,
+    "h2h_score": -0.19514831746648886
+  },
+  "away_coeffs": {
+    "elo_delta": -0.0005353561768399389,
+    "home_avg_xg": -0.25623913622226085,
+    "away_avg_xg": 0.1881770638263797,
+    "home_avg_xg_conceded": 0.11786865945937197,
+    "away_avg_xg_conceded": -0.16201383636443487,
+    "home_form_pts": 0.03447210044293297,
+    "away_form_pts": -0.048251100941008575,
+    "home_sentiment": 0.0,
+    "away_sentiment": 0.0,
+    "home_momentum": 0.0,
+    "away_momentum": 0.0,
+    "home_advantage": 0.0,
+    "venue_altitude_m": 0.0,
+    "rest_delta": 0.0,
+    "h2h_score": -0.11241369797743235
+  },
+  "home_intercept": 1.2187383186363157,
+  "away_intercept": 1.5572272396592504
+}

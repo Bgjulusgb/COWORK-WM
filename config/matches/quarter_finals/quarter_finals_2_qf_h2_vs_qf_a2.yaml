@@ -1,0 +1,190 @@
+match:
+  id: wm2026_quarter_finals_qf_h2_vs_qf_a2_98
+  tournament: FIFA World Cup 2026
+  group: QF
+  match_number: 98
+  phase: quarter_finals
+  kickoff_utc: '2026-07-15T21:00:00Z'
+  venue: TBD
+teams:
+  home:
+    name: 'Sieger Achtelfinale #3'
+    code: QF_H2
+    fifa_code: QF_H2
+    flag_emoji: 🏳️
+    elo_rating: 1750
+    avg_xg_season: 1.4
+    avg_xg_conceded: 1.4
+    form_last5:
+    - D
+    - D
+    - D
+    - D
+    - D
+    world_ranking: 50
+  away:
+    name: 'Sieger Achtelfinale #4'
+    code: QF_A2
+    fifa_code: QF_A2
+    flag_emoji: 🏳️
+    elo_rating: 1750
+    avg_xg_season: 1.4
+    avg_xg_conceded: 1.4
+    form_last5:
+    - D
+    - D
+    - D
+    - D
+    - D
+    world_ranking: 50
+reddit_sources:
+  tier1_global:
+  - subreddit: worldcup
+    language_filter: en
+    min_post_score: 10
+    search_keywords:
+    - 'sieger achtelfinale #3'
+    - 'sieger achtelfinale #4'
+    - qf_h2
+    - qf_a2
+    - qf_h2 vs qf_a2
+  - subreddit: soccer
+    language_filter: en
+    min_post_score: 5
+    search_keywords:
+    - 'sieger achtelfinale #3'
+    - 'sieger achtelfinale #4'
+    - world cup
+    - prediction
+    - preview
+  tier2_team_specific:
+    home:
+    - subreddit: worldcup
+      min_post_score: 3
+      include_comments: true
+      comment_depth: 2
+    - subreddit: soccer
+      min_post_score: 3
+      include_comments: true
+      comment_depth: 2
+    away:
+    - subreddit: worldcup
+      min_post_score: 3
+      include_comments: true
+      comment_depth: 2
+    - subreddit: soccer
+      min_post_score: 3
+      include_comments: true
+      comment_depth: 2
+  tier3_national_sentiment:
+    home:
+    - subreddit: worldcup
+      search_keywords: &id001
+      - world cup 2026
+      - worldcup
+      - WC2026
+      - FIFA2026
+    away:
+    - subreddit: worldcup
+      search_keywords: *id001
+crawl_config:
+  filters:
+    min_account_age_days: 30
+    min_post_score: 3
+    min_comment_score: 1
+    exclude_flairs:
+    - Meme
+    - Satire
+    - Off-Topic
+    exclude_bots: true
+    language: en
+    max_post_age_hours: 72
+preprocessing:
+  text_cleaning:
+    remove_urls: true
+    remove_reddit_markup: true
+    remove_mentions: true
+    remove_subreddit_refs: true
+    normalize_unicode: true
+    expand_contractions: true
+    lowercase: true
+  sport_slang_expansion:
+    enable: true
+    custom_dict:
+      W: win
+      L: loss
+      brace: two goals
+      hat trick: three goals
+      clean sheet: no goals conceded
+      pen: penalty
+      og: own goal
+      nil: zero
+      bottled: lost under pressure
+      class: excellent
+      quality: excellent
+      garbage: very bad
+      trash: very bad
+      banging: great
+      worldie: spectacular goal
+      park the bus: defensive
+  tokenization:
+    library: spacy
+    model: en_core_web_sm
+    lemmatize: true
+    remove_stopwords: true
+    preserve_negations: true
+    min_token_length: 2
+    max_token_length: 50
+sentiment_config:
+  ensemble_weights:
+    vader: 0.55
+    textblob: 0.25
+    roberta: 0.2
+  vader_config:
+    use_social_media_mode: true
+    custom_lexicon:
+      dominate: 2.5
+      demolished: -3.0
+      clinical: 2.0
+      unlucky: -1.5
+      deserved: 1.5
+      bottled: -2.5
+      worldie: 3.5
+      garbage: -3.0
+  team_attribution:
+    method: keyword
+    home_keywords:
+    - 'Sieger Achtelfinale #3'
+    - QF_H2
+    away_keywords:
+    - 'Sieger Achtelfinale #4'
+    - QF_A2
+    unattributed_handling: neutral
+  aggregation:
+    time_windows:
+    - 6
+    - 12
+    - 24
+    - 48
+    - 72
+    engagement_weighting:
+      formula: log(1+score)*log(1+num_comments)*upvote_ratio
+      normalize: true
+    momentum_calculation:
+      window_hours: 6
+prediction_config:
+  goal_prediction:
+    method: heuristic_xg_dixoncoles
+    dixon_coles_rho: 0.1
+    max_goals_display: 6
+    markets_to_calculate:
+    - 1X2
+    - over_under_25
+    - over_under_15
+    - over_under_35
+    - btts
+    - exact_score
+  best_bet:
+    min_probability: 0.55
+    min_confidence: 0.6
+    max_bets_per_match: 3

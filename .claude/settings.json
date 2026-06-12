@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/session-start.sh",
+            "timeout": 180
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python3 -m wm2026.cli *)",
+      "Bash(python -m wm2026.cli *)",
+      "Bash(wm2026 *)",
+      "Bash(python3 debug.py*)",
+      "Bash(python debug.py*)",
+      "Bash(python3 scripts/fit_calibration_offline.py *)",
+      "Bash(python3 scripts/tune_models_offline.py *)",
+      "Bash(pytest *)",
+      "Bash(pip install -r requirements.txt*)",
+      "Bash(pip install .[viz,sentiment,stats,test]*)",
+      "Bash(pip install .[full]*)",
+      "Bash(ls *)",
+      "Bash(cat reports/*)",
+      "Bash(find reports/*)",
+      "Bash(mkdir -p reports*)",
+      "Read(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "WebSearch(*)",
+      "WebFetch(domain:www.football-data.org)",
+      "WebFetch(domain:the-odds-api.com)",
+      "WebFetch(domain:fbref.com)",
+      "WebFetch(domain:understat.com)",
+      "WebFetch(domain:footystats.org)",
+      "WebFetch(domain:fotmob.com)",
+      "WebFetch(domain:sofascore.com)",
+      "WebFetch(domain:transfermarkt.com)",
+      "WebFetch(domain:clubelo.com)",
+      "WebFetch(domain:accuweather.com)",
+      "WebFetch(domain:openweathermap.org)",
+      "WebFetch(domain:sportsgambler.com)",
+      "WebFetch(domain:sportsline.com)",
+      "WebFetch(domain:sportsmole.co.uk)",
+      "WebFetch(domain:aljazeera.com)",
+      "WebFetch(domain:bbc.com)",
+      "WebFetch(domain:espn.com)",
+      "WebFetch(domain:reddit.com)",
+      "WebFetch(domain:en.wikipedia.org)"
+    ],
+    "deny": [
+      "Write(.env)",
+      "Write(**/.env)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git reset --hard*)"
+    ]
+  },
+  "env": {
+    "WM2026_REPORT_DIR": "reports",
+    "PYTHONUNBUFFERED": "1"
+  }
+}

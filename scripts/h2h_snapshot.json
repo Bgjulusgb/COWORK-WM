@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "description": "Static head-to-head snapshot over last 10 meetings. Update via scripts/update_h2h.py when football-data.org access is configured.",
+    "updated": "2026-05-31"
+  },
+  "ENG_CRO": {"home_wins": 2, "draws": 3, "away_wins": 1, "avg_goals": 2.3},
+  "BRA_ARG": {"home_wins": 4, "draws": 2, "away_wins": 4, "avg_goals": 2.5},
+  "GER_FRA": {"home_wins": 3, "draws": 3, "away_wins": 4, "avg_goals": 2.6},
+  "ESP_POR": {"home_wins": 3, "draws": 4, "away_wins": 3, "avg_goals": 2.4},
+  "USA_MEX": {"home_wins": 4, "draws": 2, "away_wins": 4, "avg_goals": 2.2},
+  "NED_BEL": {"home_wins": 5, "draws": 3, "away_wins": 2, "avg_goals": 3.0},
+  "JPN_KOR": {"home_wins": 3, "draws": 4, "away_wins": 3, "avg_goals": 2.1},
+  "ITA_GER": {"home_wins": 3, "draws": 4, "away_wins": 3, "avg_goals": 2.5},
+  "URU_ARG": {"home_wins": 2, "draws": 3, "away_wins": 5, "avg_goals": 2.4}
+}

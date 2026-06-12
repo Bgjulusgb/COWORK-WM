@@ -1,0 +1,6 @@
+{
+  "_meta": {
+    "description": "Per-team injury/suspension impact snapshot. impact: 0..1; xG multiplier = 1 - 0.15 * impact.",
+    "updated": "2026-05-31"
+  }
+}

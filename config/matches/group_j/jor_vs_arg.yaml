@@ -1,0 +1,191 @@
+match:
+  id: wm2026_groupj_jor_vs_arg
+  tournament: FIFA World Cup 2026
+  group: J
+  match_number: 70
+  phase: group_stage
+  kickoff_utc: '2026-06-27T20:00:00Z'
+  venue: GEHA Field at Arrowhead Stadium, Kansas City
+teams:
+  home:
+    name: Jordan
+    code: JOR
+    fifa_code: JOR
+    flag_emoji: 🇯🇴
+    elo_rating: 1660
+    avg_xg_season: 1.1
+    avg_xg_conceded: 1.45
+    form_last5:
+    - L
+    - D
+    - W
+    - L
+    - D
+    world_ranking: 54
+  away:
+    name: Argentina
+    code: ARG
+    fifa_code: ARG
+    flag_emoji: 🇦🇷
+    elo_rating: 2130
+    avg_xg_season: 2.05
+    avg_xg_conceded: 0.8
+    form_last5:
+    - W
+    - W
+    - D
+    - W
+    - W
+    world_ranking: 1
+reddit_sources:
+  tier1_global:
+  - subreddit: worldcup
+    language_filter: en
+    min_post_score: 10
+    search_keywords:
+    - jordan
+    - argentina
+    - jor
+    - arg
+    - jor vs arg
+  - subreddit: soccer
+    language_filter: en
+    min_post_score: 5
+    search_keywords:
+    - jordan
+    - argentina
+    - world cup
+    - prediction
+    - preview
+  tier2_team_specific:
+    home:
+    - subreddit: jordan
+      min_post_score: 3
+      include_comments: true
+      comment_depth: 2
+    - subreddit: soccer
+      min_post_score: 3
+      include_comments: true
+      comment_depth: 2
+    away:
+    - subreddit: argentina
+      min_post_score: 3
+      include_comments: true
+      comment_depth: 2
+    - subreddit: soccer
+      min_post_score: 3
+      include_comments: true
+      comment_depth: 2
+  tier3_national_sentiment:
+    home:
+    - subreddit: jordan
+      search_keywords: &id001
+      - world cup 2026
+      - worldcup
+      - WC2026
+      - FIFA2026
+    away:
+    - subreddit: argentina
+      search_keywords: *id001
+crawl_config:
+  filters:
+    min_account_age_days: 30
+    min_post_score: 3
+    min_comment_score: 1
+    exclude_flairs:
+    - Meme
+    - Satire
+    - Off-Topic
+    exclude_bots: true
+    language: en
+    max_post_age_hours: 72
+preprocessing:
+  text_cleaning:
+    remove_urls: true
+    remove_reddit_markup: true
+    remove_mentions: true
+    remove_subreddit_refs: true
+    normalize_unicode: true
+    expand_contractions: true
+    lowercase: true
+  sport_slang_expansion:
+    enable: true
+    custom_dict:
+      W: win
+      L: loss
+      brace: two goals
+      hat trick: three goals
+      clean sheet: no goals conceded
+      pen: penalty
+      og: own goal
+      nil: zero
+      bottled: lost under pressure
+      class: excellent
+      quality: excellent
+      garbage: very bad
+      trash: very bad
+      banging: great
+      worldie: spectacular goal
+      park the bus: defensive
+  tokenization:
+    library: spacy
+    model: en_core_web_sm
+    lemmatize: true
+    remove_stopwords: true
+    preserve_negations: true
+    min_token_length: 2
+    max_token_length: 50
+sentiment_config:
+  ensemble_weights:
+    vader: 0.55
+    textblob: 0.25
+    roberta: 0.2
+  vader_config:
+    use_social_media_mode: true
+    custom_lexicon:
+      dominate: 2.5
+      demolished: -3.0
+      clinical: 2.0
+      unlucky: -1.5
+      deserved: 1.5
+      bottled: -2.5
+      worldie: 3.5
+      garbage: -3.0
+  team_attribution:
+    method: keyword
+    home_keywords:
+    - Jordan
+    - JOR
+    away_keywords:
+    - Argentina
+    - ARG
+    - Albiceleste
+    unattributed_handling: neutral
+  aggregation:
+    time_windows:
+    - 6
+    - 12
+    - 24
+    - 48
+    - 72
+    engagement_weighting:
+      formula: log(1+score)*log(1+num_comments)*upvote_ratio
+      normalize: true
+    momentum_calculation:
+      window_hours: 6
+prediction_config:
+  goal_prediction:
+    method: heuristic_xg_dixoncoles
+    dixon_coles_rho: 0.1
+    max_goals_display: 6
+    markets_to_calculate:
+    - 1X2
+    - over_under_25
+    - over_under_15
+    - over_under_35
+    - btts
+    - exact_score
+  best_bet:
+    min_probability: 0.55
+    min_confidence: 0.6
+    max_bets_per_match: 3

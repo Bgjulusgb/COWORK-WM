@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  workflow:
+    name: predict (mock) · py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install core requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Run wm2026 doctor (dep + pipeline self-check)
+        run: python -m wm2026.cli doctor
+
+      - name: Run wm2026 + math test suites (mock, offline)
+        run: |
+          pytest -q \
+            tests/test_wm2026_pipeline.py \
+            tests/test_markets.py \
+            tests/test_markets_extended.py \
+            tests/test_edge_conservative.py \
+            tests/test_backtesting_rps.py \
+            tests/test_backtest_cli.py \
+            tests/test_bivariate_poisson.py \
+            tests/test_calibration_offline.py \
+            tests/test_overrides.py \
+            tests/test_report_html.py \
+            tests/test_xg_estimator.py \
+            tests/test_tournament.py \
+            tests/test_model_tuning.py \
+            tests/test_examples_guard.py \
+            tests/test_factor_aggregation.py \
+            tests/test_phase4_backend.py \
+            tests/test_compact_and_summary.py
+
+      - name: Debug harness — every function on mock data
+        run: python debug.py -q
+
+      - name: Smoke — predict a sample fixture (mock, all markets + bankroll + compact + gzip + summary)
+        run: |
+          python -m wm2026.cli predict --mode mock \
+            --match config/matches/group_a/cze_vs_rsa.yaml \
+            --odds "2.10/3.40/3.20" --odds-ou "1.85/1.95" --odds-btts "1.80/2.00" \
+            --odds-dc "1.28/1.30/1.55" --odds-ah=-0.5:1.95/1.95 \
+            --ah-lines=-1,-0.5,0,0.5,1 \
+            --bankroll 1000 --compact --gzip \
+            --format html --charts --charts-external \
+            --out reports/
+          # Make sure the on-disk summary parses + cli summary subcommand works.
+          python -m wm2026.cli summary reports/wm2026_groupa_cze_vs_rsa.json
+          test -s reports/wm2026_groupa_cze_vs_rsa.summary.md
+          test -s reports/wm2026_groupa_cze_vs_rsa.json.gz
+
+      - name: Upload prediction report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: prediction-report-py${{ matrix.python-version }}
+          path: reports/
+          if-no-files-found: ignore
+
+  lint:
+    name: lint (advisory — new modules only)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install ruff
+        run: pip install 'ruff>=0.4.0'
+      - name: Ruff check (style + flakes + isort + bugbear)
+        # Repo-wide formatting hasn't been adopted yet, so this lint pass
+        # only fires on the modules introduced or touched by the Top-7 PR
+        # — extend the list as more files migrate.
+        run: |
+          ruff check \
+            wm2026/backtest.py \
+            tests/test_backtest_cli.py

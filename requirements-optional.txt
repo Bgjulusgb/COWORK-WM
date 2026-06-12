@@ -1,0 +1,18 @@
+# ── WM 2026 workflow — OPTIONAL add-ons ───────────────────────────────────────
+# Each line unlocks one feature on top of the core (requirements.txt). The
+# workflow degrades gracefully when any of these is missing.
+#
+#   pip install -r requirements.txt -r requirements-optional.txt
+#
+statsmodels>=0.14      # exact GLM-Poisson goal model (else it falls back to Poisson)
+scikit-learn>=1.3      # isotonic / Platt calibration   (Phase 5)
+matplotlib>=3.7        # PNG charts via --charts          (Phase 8 C/D)
+SQLAlchemy>=2.0        # persistent data-source cache backstop (else in-memory only)
+aiosqlite>=0.19        #   ^ async SQLite driver for the cache
+vaderSentiment>=3.3    # sentiment layer                  (Phase 3)
+textblob>=0.17         #   ^ polarity / subjectivity
+pytest>=7.4            # test suite (tests/)
+
+# Live-Modus hinter SOCKS-Proxy (z.B. Sandbox/Corporate): httpx braucht socksio,
+# sonst degradieren alle Konnektoren mit "socksio not installed" zu mock.
+httpx[socks]>=0.27

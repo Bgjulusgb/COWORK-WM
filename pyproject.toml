@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wm2026-workflow"
+version = "1.0.0"
+description = "WM 2026 — Match-Analyse & Prediction workflow (8-phase quant pipeline over a 20-factor ensemble)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+keywords = ["football", "world-cup-2026", "prediction", "poisson", "dixon-coles", "betting", "xg"]
+dependencies = [
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.4",
+    "PyYAML>=6.0",
+    "httpx>=0.27",
+    "structlog>=24.1",
+    # Cap on numpy 2.3 keeps us compatible with libraries that haven't moved
+    # to the numpy-2.4 ABI yet (numba 0.61, older lightgbm, older torch). The
+    # pipeline itself runs on any numpy ≥1.26.
+    "numpy>=1.26,<2.3",
+    "scipy>=1.11",
+]
+
+[project.optional-dependencies]
+# Charts (--charts): factor tornado + score heatmap.
+viz = ["matplotlib>=3.7"]
+# Exact GLM-Poisson goal model + isotonic/Platt calibration.
+stats = ["statsmodels>=0.14", "scikit-learn>=1.3"]
+# Persistent (cross-run) data-source cache backstop.
+cache = ["SQLAlchemy>=2.0", "aiosqlite>=0.19"]
+# Sentiment layer (Phase 3).
+sentiment = ["vaderSentiment>=3.3", "textblob>=0.17"]
+# Coloured terminal output (--format markdown gets rich tables when present).
+tui = ["rich>=13"]
+# Offline model/blend tuning to RPS (Phase-4 optimiser).
+tune = ["optuna>=3.6"]
+# Test suite.
+test = ["pytest>=7.4"]
+# Lint + format. Used by the advisory CI job — not required for runtime.
+dev = ["ruff>=0.4.0"]
+# Note: the HTML report (--format html) needs NO extra deps — it's self-contained
+# (charts embed via the optional `viz` extra, ASCII fallback otherwise).
+# Everything the workflow can use (not the heavy FastAPI/Prefect/ML-training app).
+full = [
+    "matplotlib>=3.7", "statsmodels>=0.14", "scikit-learn>=1.3",
+    "SQLAlchemy>=2.0", "aiosqlite>=0.19", "vaderSentiment>=3.3",
+    "textblob>=0.17", "rich>=13", "optuna>=3.6", "pytest>=7.4",
+]
+
+[project.scripts]
+wm2026 = "wm2026.cli:main"
+
+[tool.setuptools.packages.find]
+# Reuse the existing data-query / factor / model packages; ship them in the
+# wheel so the `wm2026` console script works after `pip install .`. These are
+# exactly the first-party packages the prediction chain imports at module load.
+# The heavy app layers (api, db, alembic, orchestration, services) are excluded
+# — the core chain only imports `db` lazily, inside a try/except.
+include = [
+    "wm2026*", "data_sources*", "factors*", "analysis*", "models_ml*",
+    "config*", "utils*", "crawler*", "preprocessing*", "scripts*",
+]
+exclude = ["tests*", "alembic*", "api*", "db*", "orchestration*", "services*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+# Ruff config (advisory lint, repo-wide settings; CI only runs ruff on the files
+# touched by the "Top-7 Quick Wins" PR — see .github/workflows/ci.yml > lint).
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["scripts/_ml_pipeline.py", "build", "dist", ".venv"]
+
+[tool.ruff.lint]
+# Pyflakes (F) + pycodestyle errors (E) + import order (I) + bugbear (B).
+select = ["E", "F", "I", "B"]
+ignore = [
+    "E501",  # long lines — many existing docstrings are intentionally long.
+    "B008",  # function default-arg call — pydantic-Settings uses this pattern.
+    "E741",  # ambiguous variable name — "l"/"L" in helpers is fine.
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests routinely shadow names + import lazily.
+"tests/*" = ["F401", "F811", "B011"]
