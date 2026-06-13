@@ -89,9 +89,12 @@ auch ohne (degradiert die jeweilige Quelle auf Mock):
 |---|---|---|
 | `ODDS_API_KEY` | Live-Quoten (1X2, O/U, BTTS) | the-odds-api.com (free tier) |
 | `FOOTBALL_DATA_API_KEY` | Fixtures Cross-Check | football-data.org (free tier) |
-| `REDDIT_CLIENT_ID` + `REDDIT_CLIENT_SECRET` | Reddit-Stimmung | reddit.com/prefs/apps |
 | `NVIDIA_API_KEY` | LLM-Sentiment-Scoring (Aspect-Sentiment) | build.nvidia.com |
-| `TWITTER_BEARER_TOKEN` | X-Crawler | developer.twitter.com |
+
+> **Reddit-Stimmung läuft ohne Account** — der Crawler liest den öffentlichen
+> `old.reddit.com/.json`-Endpunkt (höflich gedrosselt: 4 parallel, Backoff,
+> Circuit-Breaker). Twitter/X ist entfernt (bräuchte die kostenpflichtige
+> v2-API — Projekt-Policy: nur Free/Open-Source-Quellen).
 
 > Alternative ohne Keys: Quoten direkt per Flag mitgeben:
 > `--odds "2.10/3.40/3.20" --odds-ou "1.85/1.95"`.
@@ -104,7 +107,7 @@ auch ohne (degradiert die jeweilige Quelle auf Mock):
 
 | | Status | Was tun? |
 |---|---|---|
-| **12 Skills** in `.claude/skills/` (`predict-match` · `research-fixture` · `read-report` · `analyze-edge` · `inspect-data` · `compare-runs` · `tournament-sim` · `calibrate-offline` · `tune-models` · `backtest-results` · `list-fixtures` · `cowork-setup`) | ✅ im Repo | **nichts** — Claude Code lädt sie automatisch je nach Frage |
+| **13 Skills** in `.claude/skills/` (`predict-match` · `research-fixture` · `read-report` · `analyze-edge` · `inspect-data` · `compare-runs` · `tournament-sim` · `tournament-viz` · `calibrate-offline` · `tune-models` · `backtest-results` · `list-fixtures` · `cowork-setup`) | ✅ im Repo | **nichts** — Claude Code lädt sie automatisch je nach Frage |
 | **SessionStart-Hook** (`.claude/hooks/session-start.sh`) — installiert Deps + `[viz,sentiment,stats]`, smoke via `wm2026 doctor` | ✅ angelegt | **nichts** — läuft idempotent beim Sitzungsstart, Marker `.claude/.bootstrapped` |
 | **`.claude/settings.json`** — Hook-Registrierung + Permissions-Allowlist (`wm2026 …`, `pytest`, `pip`, Web Search) | ✅ angelegt | **nichts** — keine Permission-Prompts mehr für die Standard-Calls |
 | **Sub-Agent `wm-quant-analyst`** (`.claude/agents/`) — orchestriert End-to-End | ✅ angelegt | optional explizit aufrufen: `@wm-quant-analyst` |
@@ -300,6 +303,10 @@ python -m wm2026.cli doctor --json   # für CI / Hook (Exit 0/1/2)
 - Exit `0`: alle Core-Deps + Pipeline + Schema ok.
 - Exit `1`: Core-Dep fehlt → `pip install -r requirements.txt`.
 - Exit `2`: Pipeline/Schema kaputt → der Fehler-Block zeigt wo.
+
+Das Doctor-Output enthält außerdem eine **`API keys`-Sektion** (`NVIDIA_API_KEY`,
+`ODDS_API_KEY`, `FOOTBALL_DATA_API_KEY`) mit ✅/⚠️ je Key — fehlende Keys sind
+**kein** Fehler (der jeweilige Connector degradiert sauber auf Mock).
 
 ---
 

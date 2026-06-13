@@ -14,7 +14,7 @@ def _write_report(tmp: Path, match_id: str, p_1x2: tuple[float, float, float],
                   best_value_cons: dict | None = None) -> None:
     """Minimal report JSON with just the keys backtest reads."""
     payload = {
-        "schema_version": "1.5",
+        "schema_version": "1.3",
         "match_id": match_id,
         "markets": {
             "1x2": {"home": p_1x2[0], "draw": p_1x2[1], "away": p_1x2[2]},

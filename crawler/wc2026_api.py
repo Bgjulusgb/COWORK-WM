@@ -39,7 +39,7 @@ async def _get_client() -> httpx.AsyncClient:
         return _CLIENT
     async with _CLIENT_LOCK:
         if _CLIENT is None:
-            _CLIENT = httpx.AsyncClient(timeout=_TIMEOUT, verify=_ssl_context())
+            _CLIENT = httpx.AsyncClient(timeout=_TIMEOUT, verify=_ssl_context(), trust_env=False)
     return _CLIENT
 
 

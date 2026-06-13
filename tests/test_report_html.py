@@ -40,7 +40,8 @@ def test_build_html_without_matplotlib_renders(monkeypatch):
 
 
 def test_build_html_shows_cowork_when_gaps():
-    # mock + no odds → an odds Cowork task fires → the HTML Cowork block appears.
+    # mock + no real odds (the mock-sourced odds are not adopted) → an odds
+    # Cowork task fires → the HTML Cowork block appears.
     cfg = synth_config(home_team="Spain", away_team="Japan")
     result = asyncio.run(run_prediction(cfg, mode="mock", bootstrap_n=0))
     js = build_report(result)["json"]

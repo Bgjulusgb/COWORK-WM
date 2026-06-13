@@ -178,9 +178,35 @@ def _maybe_calibrate(
         }
 
 
+def _provenance_summary(provenance: dict[str, Any]) -> dict[str, Any]:
+    """Aggregate per-slice provenance modes into one summary dict.
+
+    Looks at every ctx.provenance entry the orchestrator filled in (history,
+    weather, lineup, odds_api, …) and returns counts plus the live-coverage
+    ratio. The report surfaces this so the user can see at a glance whether a
+    ``mode: live`` run is *substantively* live or mostly fail-soft-mocked.
+    """
+    modes: dict[str, int] = {}
+    for entry in (provenance or {}).values():
+        mode = entry.get("mode") if isinstance(entry, dict) else entry
+        if mode is None:
+            mode = "unknown"
+        modes[mode] = modes.get(mode, 0) + 1
+    total = sum(modes.values())
+    live_like = modes.get("live", 0) + modes.get("cache", 0) + modes.get("research", 0)
+    coverage = round(live_like / total, 3) if total else 0.0
+    return {
+        "modes": modes,
+        "total_slices": total,
+        "live_slices": live_like,
+        "mock_slices": modes.get("mock", 0),
+        "error_slices": modes.get("error", 0),
+        "live_coverage_pct": round(100.0 * coverage, 1),
+    }
+
+
 def _validate(
-    out: Any, ensemble: EnsembleResult, signals: list, provenance: dict[str, Any],
-    market_implied: tuple[float, float, float] | None = None,
+    out: Any, ensemble: EnsembleResult, signals: list, provenance: dict[str, Any]
 ) -> list[str]:
     """Phase 7 — sanity self-check. Returns human-readable warnings (never
     raises). Mirrors the master prompt's ``/data:validate-data`` checklist."""
@@ -200,25 +226,20 @@ def _validate(
     non_mock = {"live", "cache", "research"} & modes
     if not non_mock:
         warnings.append("all data sources are mock — predictions are illustrative, not live")
+    else:
+        # Partial-live nuance: a "live" run with <40% real slices is honest but
+        # thin — surface that so the user doesn't read "mode: live" as "all real".
+        summary = _provenance_summary(provenance)
+        if summary["total_slices"] >= 5 and summary["live_coverage_pct"] < 40.0:
+            warnings.append(
+                f"partial-live: only {summary['live_slices']}/{summary['total_slices']} "
+                f"data slices ({summary['live_coverage_pct']}%) came back live — "
+                "the rest fell back to mock"
+            )
     if ensemble.confidence < 0.5:
         warnings.append(
             f"ensemble confidence {ensemble.confidence:.2f} < 0.50 — treat the pick as low-conviction"
         )
-    # Markt-Divergenz-Guard (Phase 7, additiv): automatisiert die manuelle
-    # Sanity-Check-Regel "keine Edge > 10 % ohne Begründung". Weicht das Modell
-    # auf 1X2 um > 10 pp vom vig-freien Konsens ab, ist das fast immer ein
-    # Input-Artefakt (illustrative xG/Elo) statt Value — der Bootstrap-p5
-    # misst nur Sampling-Rauschen, nicht diesen Bias.
-    if market_implied is not None and len(market_implied) == 3:
-        model_p = (out.home_win_prob, out.draw_prob, out.away_win_prob)
-        labels = ("home", "draw", "away")
-        for label, mp, fp in zip(labels, model_p, market_implied):
-            if abs(mp - fp) > 0.10:
-                warnings.append(
-                    f"model-market divergence on 1X2 {label}: model {mp:.1%} vs "
-                    f"vig-free {fp:.1%} (Δ {abs(mp - fp):.1%} > 10pp) — verify the "
-                    f"λ-driving inputs (xG/Elo) before trusting any edge here"
-                )
     return warnings
 
 
@@ -305,9 +326,6 @@ async def run_prediction(
     overrides: dict[str, Any] | None = None,
     bankroll: float | None = None,
     ah_lines: Sequence[float] | None = None,
-    edge_on_calibrated: bool = False,
-    sensitivity: bool = False,
-    baseline: str = "yaml",
 ) -> dict[str, Any]:
     """Run all phases for one match config and return the raw ``result`` dict.
 
@@ -352,6 +370,21 @@ async def run_prediction(
     if overrides_applied:
         provenance = dict(ctx.provenance)
 
+    # Phase 1.6 — fall back to live odds from the_odds_api connector whenever
+    # the CLI didn't pass --odds* flags. The orchestrator already fetched them
+    # in Phase 1; this lets the edge table populate without any manual entry.
+    if ctx.live_odds:
+        if odds_1x2 is None and ctx.live_odds.get("1x2"):
+            odds_1x2 = list(ctx.live_odds["1x2"])
+            if ctx.market_implied is None:
+                fair, _ = edge_mod.devig(odds_1x2[:3])
+                if len(fair) >= 3:
+                    ctx.market_implied = (fair[0], fair[1], fair[2])
+        if odds_ou25 is None and ctx.live_odds.get("ou_2_5"):
+            odds_ou25 = list(ctx.live_odds["ou_2_5"])
+        if odds_btts is None and ctx.live_odds.get("btts"):
+            odds_btts = list(ctx.live_odds["btts"])
+
     # Phase 2/3 — factor decomposition (+ injected sentiment).
     signals = await _signals(ctx)
 
@@ -369,30 +402,6 @@ async def run_prediction(
                 base_home_xg, base_away_xg = mle
         except Exception as exc:  # pragma: no cover - defensive
             log.warning("mle_xg_failed", error=str(exc), exc_info=True)
-    # Phase 6.2 (opt-in): markt-implizite λ-Baseline — invertiert die vig-freien
-    # Quoten zur (λ_home, λ_away) auf der Blend-Matrix. Ersetzt die illustrative
-    # YAML-xG, wenn recherchierte Quoten vorliegen. Default: baseline="yaml".
-    if (baseline or "yaml").lower() == "market" and ctx.market_implied is not None:
-        try:
-            from models_ml.poisson_goals import build_all_goal_models
-            from wm2026.market_baseline import market_implied_lambdas
-            fair_over = None
-            if odds_ou25 and len(odds_ou25) >= 2:
-                fo, _ = edge_mod.devig(odds_ou25[:2])
-                if len(fo) >= 1:
-                    fair_over = fo[0]
-            _mb_models = build_all_goal_models(
-                rho=getattr(settings, "dixon_coles_rho", 0.1))
-            mb_h, mb_a, mb_diag = market_implied_lambdas(
-                _mb_models, ctx.market_implied, fair_over)
-            if mb_diag.get("converged") and 0.3 <= mb_h <= 4.0 and 0.3 <= mb_a <= 4.0:
-                base_home_xg, base_away_xg = mb_h, mb_a
-                base_xg_source = "market-implied"
-            else:  # pragma: no cover - defensive
-                log.warning("market_baseline_rejected", diag=mb_diag)
-        except Exception as exc:  # pragma: no cover - defensive
-            log.warning("market_baseline_failed", error=str(exc))
-
     predictor = MatchPredictor(
         rho=getattr(settings, "dixon_coles_rho", 0.1),
         goal_model=settings.goal_model,
@@ -425,12 +434,17 @@ async def run_prediction(
         matrix = blend_score_matrix(predictor.models, out.home_xg, out.away_xg)
         score_matrix = [[float(matrix[i][j]) for j in range(matrix.shape[1])]
                         for i in range(matrix.shape[0])]
+        corners_cfg = (cfg.get("corners") or {}) if isinstance(cfg, dict) else {}
+        cards_cfg = (cfg.get("cards") or {}) if isinstance(cfg, dict) else {}
         derived_markets = markets_mod.derive_all(
             matrix,
             p1x2=(out.home_win_prob, out.draw_prob, out.away_win_prob),
             ah_lines=ah_lines,
             lam_home=out.home_xg, lam_away=out.away_xg,
             models=predictor.models, ht_share=settings.ht_lambda_share,
+            corners_lam_home=corners_cfg.get("lambda_home"),
+            corners_lam_away=corners_cfg.get("lambda_away"),
+            cards_lam_total=cards_cfg.get("lambda_total"),
         )
     except Exception:  # pragma: no cover - defensive
         score_matrix = []
@@ -446,32 +460,15 @@ async def run_prediction(
     )
 
     # Phase 6 — market edge / value detection.
-    # Phase 5.2 (opt-in, additiv): die 1X2-Inputs der Edge-Rechnung auf die
-    # kalibrierten p umstellen — sonst rechnet die Edge-Tabelle gegen den
-    # eigenen kalibrierten Konsens an (Geister-Edges bei Markt-Anker).
-    cal_1x2: dict[str, float] = {}
-    if edge_on_calibrated and calibration.get("applied") and calibration.get("calibrated"):
-        cal_1x2 = dict(calibration["calibrated"])  # home_win / draw / away_win
     blended = {
-        "home_win": cal_1x2.get("home_win", out.home_win_prob),
-        "draw": cal_1x2.get("draw", out.draw_prob),
-        "away_win": cal_1x2.get("away_win", out.away_win_prob),
+        "home_win": out.home_win_prob,
+        "draw": out.draw_prob,
+        "away_win": out.away_win_prob,
         "over_25": out.over_25,
         "btts": out.btts,
     }
     # Blended bootstrap CI → conservative (p5) edge / half-Kelly columns.
     ci_blended = (out.features.get("confidence_intervals") or {}).get("blended")
-    if cal_1x2 and isinstance(ci_blended, dict):
-        # CI-Bänder proportional (cal/raw) mitskalieren, damit die p5-Spalte
-        # konsistent zur kalibrierten Punktschätzung bleibt (geclamped [0,1]).
-        ci_blended = dict(ci_blended)
-        raw = {"home_win": out.home_win_prob, "draw": out.draw_prob,
-               "away_win": out.away_win_prob}
-        for key, cal_p in cal_1x2.items():
-            band = ci_blended.get(key)
-            if band is not None and raw.get(key):
-                f = cal_p / raw[key]
-                ci_blended[key] = [min(1.0, max(0.0, float(v) * f)) for v in band]
     edge_rows = edge_mod.compute_edges(
         blended, odds_1x2=odds_1x2, odds_ou25=odds_ou25, odds_btts=odds_btts,
         odds_dc=odds_dc, ci=ci_blended,
@@ -525,8 +522,7 @@ async def run_prediction(
     best_value_cons = edge_mod.best_value_cons_pick(edge_rows)
 
     # Phase 7 — validation + Claude's Cowork research assignment.
-    warnings = _validate(out, ensemble, signals, provenance,
-                         market_implied=ctx.market_implied)
+    warnings = _validate(out, ensemble, signals, provenance)
     claude_tasks = _claude_tasks(provenance, cfg, mode=mode, has_odds=bool(odds_1x2))
     if mode == "live":
         slices = [p for p in provenance.values() if isinstance(p, dict)]
@@ -536,26 +532,6 @@ async def run_prediction(
                 f"live mode: {degraded}/{len(slices)} data slices degraded to mock — "
                 f"Claude must research the gaps (see claude_tasks / the Cowork-Auftrag section)"
             )
-
-    # Phase 5.1 (opt-in): λ-Perturbations-Robustheit der bepreisten Edges.
-    # Misst den Input-Bias, den der Bootstrap-p5 nicht sieht (Plan Phase 5).
-    sensitivity_result = None
-    if sensitivity:
-        try:
-            from wm2026.sensitivity import sensitivity_check
-            sensitivity_result = sensitivity_check(
-                predictor.models, out.home_xg, out.away_xg, edge_rows)
-            if best_value_cons:
-                key = f"{best_value_cons['market']}/{best_value_cons['selection']}"
-                sel = (sensitivity_result.get("selections") or {}).get(key)
-                if sel and sel["robust_pct"] < 1.0:
-                    warnings.append(
-                        f"best_value_cons {key} is NOT robust to ±15% λ-perturbation "
-                        f"(edge positive in only {sel['robust_pct']:.0%} of scenarios, "
-                        f"min {sel['edge_min_pct']:+.1f}%) — treat as data artifact, not value"
-                    )
-        except Exception as exc:  # pragma: no cover - defensive
-            log.warning("sensitivity_check_failed", error=str(exc))
 
     return {
         "config": cfg,
@@ -573,6 +549,7 @@ async def run_prediction(
         "derived_markets": derived_markets,
         "calibration": calibration,
         "provenance": provenance,
+        "provenance_summary": _provenance_summary(provenance),
         "edges": edge_rows,
         "best_value": best_value,
         "best_value_cons": best_value_cons,
@@ -580,12 +557,6 @@ async def run_prediction(
         "warnings": warnings,
         "claude_tasks": claude_tasks,
         "overrides_applied": overrides_applied,
-        # Cowork v3 (additiv): Recherche-Log aus der overrides.json durchreichen
-        # (beide Feldnamen des research-fixture-Skills werden akzeptiert).
-        "research_log": ((overrides or {}).get("_research_log")
-                         or (overrides or {}).get("sources") or []),
-        # Phase 5.1 (additiv, schema 1.5): Robustheits-Analyse oder None.
-        "sensitivity": sensitivity_result,
         "bootstrap_n": boot,
     }
 

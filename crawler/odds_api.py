@@ -35,7 +35,7 @@ _CLIENT: httpx.AsyncClient | None = None
 async def _client() -> httpx.AsyncClient:
     global _CLIENT
     if _CLIENT is None:
-        _CLIENT = httpx.AsyncClient(timeout=_TIMEOUT)
+        _CLIENT = httpx.AsyncClient(timeout=_TIMEOUT, trust_env=False)
     return _CLIENT
 
 

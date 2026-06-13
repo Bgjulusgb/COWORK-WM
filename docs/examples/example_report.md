@@ -1,7 +1,7 @@
 # 🏆 WM 2026 — Czech Republic vs South Africa
 
 *group_stage · 2026-06-18T18:00:00Z · BMO Field, Toronto*
-*Mode: `mock` · model `wm2026-workflow-1.1` · predicted 2026-06-12T15:36:35.113158+00:00*
+*Mode: `mock` · model `wm2026-workflow-1.1` · predicted 2026-06-12T08:31:56.161573+00:00*
 
 ## Executive Summary
 - **Most likely 1X2:** Czech Republic ( 54.0%)  ·  Czech Republic  54.0% / Draw  22.1% / South Africa  23.8%
@@ -14,7 +14,6 @@
 
 ## ⚠️ Validation warnings
 - all data sources are mock — predictions are illustrative, not live
-- model-market divergence on 1X2 home: model 54.0% vs vig-free 44.0% (Δ 10.1% > 10pp) — verify the λ-driving inputs (xG/Elo) before trusting any edge here
 
 ## Factor Tornado (home ◀ favour ▶ away)
 ```
@@ -60,13 +59,13 @@ network_strength   ··················|············
 *`(p5)` columns are the conservative edge / half-Kelly on the bootstrap 5th-percentile — value that survives the model's own uncertainty.*
 | Market | Selection | Model P | Fair P | Odd | Edge % | Edge% (p5) | ½-Kelly % | ½K (p5) | Action |
 |---|---|---|---|---|---|---|---|---|---|
-| 1X2 | Home |  54.0% |  44.0% | 2.1 | 13.5 | -10.49 | 6.13 | 0.0 | sanity-check |
-| 1X2 | Draw |  22.1% |  27.2% | 3.4 | -24.79 | -35.87 | 0.0 | 0.0 | no-bet |
-| 1X2 | Away |  23.8% |  28.9% | 3.2 | -23.73 | -47.79 | 0.0 | 0.0 | no-bet |
-| O/U 2.5 | Over 2.5 |  50.0% | — | — | — | — | — | — | — |
-| O/U 2.5 | Under 2.5 |  50.0% | — | — | — | — | — | — | — |
-| BTTS | Yes |  49.6% | — | — | — | — | — | — | — |
-| BTTS | No |  50.4% | — | — | — | — | — | — | — |
+| 1X2 | Home |  54.0% |  44.0% | 2.1 | 13.5 | -12.26 | 6.13 | 0.0 | sanity-check |
+| 1X2 | Draw |  22.1% |  27.2% | 3.4 | -24.79 | -36.51 | 0.0 | 0.0 | no-bet |
+| 1X2 | Away |  23.8% |  28.9% | 3.2 | -23.73 | -47.51 | 0.0 | 0.0 | no-bet |
+| O/U 2.5 | Over 2.5 |  50.0% |  51.3% | 1.85 | -7.6 | -31.45 | 0.0 | 0.0 | no-bet |
+| O/U 2.5 | Under 2.5 |  50.0% |  48.7% | 1.95 | -2.4 | -22.55 | 0.0 | 0.0 | no-bet |
+| BTTS | Yes |  49.6% |  52.6% | 1.8 | -10.78 | -29.2 | 0.0 | 0.0 | no-bet |
+| BTTS | No |  50.4% |  47.4% | 2.0 | 0.86 | -13.95 | 0.43 | 0.0 | no-bet |
 
 ## Derived markets (Phase-1 math)
 - **Double Chance:** 1X  76.2% · 12  77.9% · X2  46.0%   ·   **Draw-No-Bet:** Czech Republic  69.4% / South Africa  30.6%

@@ -114,6 +114,16 @@ class FactorContext:
     network_strength_home: float | None = None
     network_strength_away: float | None = None
 
+    # Live odds fetched by the_odds_api connector (free-OSS Phase 4). Filled by
+    # the orchestrator when ODDS_API_KEY is set and the connector is live. The
+    # pipeline falls back to these whenever the CLI didn't pass --odds-* flags
+    # (so the edge table works without any manual entry). Shape is the same
+    # parsed-list-of-decimals that ``parse_odds`` returns; keys are stable:
+    #   "1x2"      → [home, draw, away]
+    #   "ou_2_5"   → [over, under]
+    #   "btts"     → [yes, no]
+    live_odds: dict[str, list[float]] | None = None
+
 
 class Factor(ABC):
     """Common shape every factor module implements.

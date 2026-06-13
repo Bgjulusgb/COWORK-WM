@@ -48,11 +48,15 @@ jobs:
             tests/test_report_html.py \
             tests/test_xg_estimator.py \
             tests/test_tournament.py \
+            tests/test_tournament_viz.py \
             tests/test_model_tuning.py \
             tests/test_examples_guard.py \
             tests/test_factor_aggregation.py \
             tests/test_phase4_backend.py \
-            tests/test_compact_and_summary.py
+            tests/test_compact_and_summary.py \
+            tests/test_settings.py \
+            tests/test_doctor.py \
+            tests/data_sources/test_odds_api.py
 
       - name: Debug harness — every function on mock data
         run: python debug.py -q

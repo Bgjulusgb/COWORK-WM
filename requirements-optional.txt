@@ -12,7 +12,3 @@ aiosqlite>=0.19        #   ^ async SQLite driver for the cache
 vaderSentiment>=3.3    # sentiment layer                  (Phase 3)
 textblob>=0.17         #   ^ polarity / subjectivity
 pytest>=7.4            # test suite (tests/)
-
-# Live-Modus hinter SOCKS-Proxy (z.B. Sandbox/Corporate): httpx braucht socksio,
-# sonst degradieren alle Konnektoren mit "socksio not installed" zu mock.
-httpx[socks]>=0.27

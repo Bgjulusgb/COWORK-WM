@@ -127,3 +127,52 @@ def test_derive_all_shape():
     # seeded 1X2 must flow into double chance
     seeded = mk.derive_all(REAL, p1x2=(0.6, 0.25, 0.15))
     assert abs(seeded["double_chance"]["1X"] - 0.85) < 1e-9
+
+
+# ── Count markets (corners, cards) ────────────────────────────────────────────
+def test_over_under_count_sums_to_one():
+    """over + under is always a clean partition for an integer threshold."""
+    pmf = mk.over_under_count(5.0, 4.5)
+    assert abs(pmf["over"] + pmf["under"] - 1.0) < 1e-9
+    assert 0.0 <= pmf["over"] <= 1.0
+
+
+def test_over_under_count_zero_lambda():
+    """λ = 0 means count is deterministic 0 — over any positive line is 0."""
+    p = mk.over_under_count(0.0, 0.5)
+    assert p["over"] == 0.0
+    assert p["under"] == 1.0
+
+
+def test_corners_market_lambda_sum_property():
+    """Total λ is the per-team sum (independence of two Poissons)."""
+    out = mk.corners_market(5.5, 4.5)
+    assert abs(out["lambda_total"] - 10.0) < 1e-9
+    assert {"lambda_home", "lambda_away", "lambda_total", "lines"} == set(out)
+    # default 4 lines (8.5, 9.5, 10.5, 11.5)
+    assert len(out["lines"]) == 4
+    # Higher line ⇒ lower P(over).
+    p_over_85 = next(l["over"] for l in out["lines"] if l["line"] == 8.5)
+    p_over_115 = next(l["over"] for l in out["lines"] if l["line"] == 11.5)
+    assert p_over_85 > p_over_115
+
+
+def test_cards_market_default_lines():
+    out = mk.cards_market(4.2)
+    assert len(out["lines"]) == 4
+    assert out["lambda_total"] == 4.2
+    # over + under partitions on each line.
+    for line in out["lines"]:
+        assert abs(line["over"] + line["under"] - 1.0) < 1e-9
+
+
+def test_derive_all_emits_corners_only_when_lambdas_provided():
+    """Default call: no corners/cards keys. With lambdas: both keys present."""
+    plain = mk.derive_all(REAL)
+    assert "corners" not in plain and "cards" not in plain
+    enriched = mk.derive_all(
+        REAL, corners_lam_home=5.0, corners_lam_away=4.5,
+        cards_lam_total=4.2,
+    )
+    assert "corners" in enriched and "cards" in enriched
+    assert enriched["corners"]["lambda_total"] == 9.5

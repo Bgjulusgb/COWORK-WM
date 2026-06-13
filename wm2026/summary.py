@@ -90,8 +90,19 @@ def summarise(js: dict[str, Any], *, top_edges: int = 5) -> str:
 
     L: list[str] = []
     L.append(f"# 🎯 {home} vs {away} · {stage} · {kick}")
+    # Live-coverage badge only when it tells us something — in mock mode
+    # everything is 0% by design, in live mode it shows the fail-soft ratio.
+    summary = js.get("data_provenance_summary") or {}
+    coverage_suffix = ""
+    if mode == "live" and summary.get("total_slices"):
+        coverage_suffix = (
+            f" · live coverage "
+            f"{summary.get('live_slices', '?')}/{summary['total_slices']}"
+            f" ({summary.get('live_coverage_pct', '?')}%)"
+        )
     L.append(f"mode `{mode}` · conf {_gauge(js.get('ensemble_confidence'))} · "
-             f"factors {js.get('factors_used', '?')}/{js.get('factors_total', '?')}")
+             f"factors {js.get('factors_used', '?')}/{js.get('factors_total', '?')}"
+             f"{coverage_suffix}")
     L.append("")
 
     # Lambdas + Bootstrap-CIs

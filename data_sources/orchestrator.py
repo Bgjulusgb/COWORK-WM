@@ -21,6 +21,7 @@ from data_sources.base import BaseConnector, FetchResult
 from data_sources.fbref import FbrefConnector
 from data_sources.football_data_org import FootballDataOrgConnector
 from data_sources.fotmob import FotMobConnector
+from data_sources.odds_api import OddsApiConnector
 from data_sources.openfootball import OpenfootballConnector
 from data_sources.openligadb import OpenLigaDBConnector
 from data_sources.rss_news import RssNewsConnector
@@ -49,6 +50,8 @@ _CACHED_FIELDS = (
     "lineup_home", "lineup_away",
     "structured_injuries_home", "structured_injuries_away",
     "squad_value_home", "squad_value_away",
+    # Phase 4 — live odds from the-odds-api.
+    "live_odds",
 )
 
 
@@ -147,6 +150,9 @@ class DataSourceOrchestrator:
         self.fotmob = FotMobConnector()
         self.sofascore = SofaScoreConnector()
         self.transfermarkt = TransfermarktConnector()
+        # Phase 4 — live bookmaker odds (the-odds-api.com). Mock-default when
+        # no key is configured; the connector itself enforces that internally.
+        self.odds_api = OddsApiConnector()
 
     async def populate(self, ctx: FactorContext) -> None:
         # D2: per-match cache. External data (history, squad, weather, fixtures)
@@ -195,11 +201,14 @@ class DataSourceOrchestrator:
             self.rss.get_team_news(away, away_name),
             self.openfootball.get_fixtures(2026),
             self.football_data.get_fixtures(2026),
+            self.odds_api.get_odds(home, away, ctx.kickoff_utc,
+                                   home_name=home_name, away_name=away_name),
             return_exceptions=True,
         )
         (hist_home, hist_away, h2h, meta_home, meta_away,
          squad_home, squad_away, olig_home, olig_away,
-         weather_res, news_home, news_away, fixtures_res, fd_fixtures_res) = (_as_result(r) for r in results)
+         weather_res, news_home, news_away, fixtures_res, fd_fixtures_res,
+         odds_res) = (_as_result(r) for r in results)
 
         # History — openfootball is primary; OpenLigaDB only fills a gap.
         ctx.historical_matches_home = hist_home.data or olig_home.data or []
@@ -224,6 +233,17 @@ class DataSourceOrchestrator:
         ctx.rest_days_away = rest_away if rest_away is not None else _rest_days(ctx.historical_matches_away, ctx.kickoff_utc)
         ctx.travel_home = travel_home
         ctx.travel_away = travel_away
+
+        # Phase 4 — store bookmaker odds for the edge table, but ONLY when they
+        # came from a genuine live fetch. The mock fallback returns hash-seeded
+        # odds that are uncorrelated with the model, so adopting them would
+        # manufacture nonsensical "edges" (e.g. a 50%-model-prob Home line shown
+        # at 3.68 → fake +80% edge). The project rule is no fake data driving
+        # signals: in mock / no-key / fetch-failed cases the edge table stays
+        # empty unless the user passes real researched odds via --odds*.
+        if odds_res.mode == "live" and isinstance(odds_res.data, dict):
+            ctx.live_odds = odds_res.data
+        ctx.provenance["odds_api"] = _prov(odds_res)
 
         ctx.provenance.update({
             "history_home": _prov(hist_home if hist_home.ok else olig_home),

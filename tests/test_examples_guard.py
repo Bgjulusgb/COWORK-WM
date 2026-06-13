@@ -17,7 +17,7 @@ EXAMPLES = Path(__file__).resolve().parents[1] / "docs" / "examples"
 
 def test_example_json_parses_and_is_current():
     d = json.loads((EXAMPLES / "example.json").read_text(encoding="utf-8"))
-    assert d["schema_version"] == "1.5"          # bump → regenerate the example
+    assert d["schema_version"] == "1.3"          # bump → regenerate the example
     for key in ("fixture", "markets", "derived_markets", "edge_table",
                 "calibration", "claude_tasks",
                 "best_value", "best_value_cons", "bankroll"):

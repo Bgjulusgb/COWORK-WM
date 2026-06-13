@@ -95,18 +95,6 @@ def _add_predict_args(p: argparse.ArgumentParser) -> None:
     run.add_argument("--ah-lines", default=None,
                      help="comma list of Asian-handicap lines, e.g. \"-0.5,0,0.5\" "
                           "(default: full spread −2..+2 incl. quarters)")
-    run.add_argument("--baseline", choices=["yaml", "market"], default="yaml",
-                     help="Phase 6.2 (opt-in): market = λ-Baseline aus den "
-                          "vig-freien Quoten invertieren (statt YAML-xG); "
-                          "braucht --odds, optional --odds-ou")
-    run.add_argument("--edge-calibrated", action="store_true",
-                     help="Phase 5.2 (opt-in): Edge-Tabelle auf den KALIBRIERTEN "
-                          "1X2-p rechnen statt auf den rohen Modell-p "
-                          "(CI-Baender proportional mitskaliert)")
-    run.add_argument("--sensitivity", action="store_true",
-                     help="Phase 5.1 (opt-in): ±15%% λ-Perturbations-Grid — "
-                          "robust_pct je bepreister Selektion + Warnung, wenn "
-                          "best_value_cons das Vorzeichen wechselt")
     run.add_argument("--gzip", action="store_true",
                      help="also write reports/<id>.json.gz (smaller on disk; "
                           "downstream tools can stream it)")
@@ -260,9 +248,6 @@ def _cmd_predict(args: argparse.Namespace) -> int:
         overrides=overrides,
         bankroll=args.bankroll,
         ah_lines=_parse_ah_lines(args.ah_lines),
-        edge_on_calibrated=args.edge_calibrated,
-        sensitivity=args.sensitivity,
-        baseline=args.baseline,
     ))
     report = build_report(result)
     # Optional Token-Sparmodus: ein dünnerer JSON-Schnappschuss (faktisch
@@ -406,6 +391,9 @@ def _cmd_tournament(args: argparse.Namespace) -> int:
                "title_prob": res.title_prob, "final_prob": res.final_prob,
                "advance_prob": res.advance_prob}
         text = json.dumps(out, indent=2, ensure_ascii=False)
+    elif args.format == "bracket":
+        from wm2026.tournament_viz import render_bracket
+        text = render_bracket(res, names)
     else:
         L = [f"# 🏆 WM 2026 — Turnier-Monte-Carlo",
              f"*{res.n_sims} Simulationen · {len(groups)} Gruppen · neutral (kein Heimvorteil)*", "",
@@ -539,7 +527,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_tour.add_argument("--seed", type=int, default=0, help="RNG seed (deterministic)")
     p_tour.add_argument("--groups", help="config root with group_* dirs (default config/matches)")
     p_tour.add_argument("--mode", choices=["mock", "live"], default="mock", help="(reads YAML; mock/live parity)")
-    p_tour.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    p_tour.add_argument("--format", choices=["markdown", "json", "bracket"], default="markdown",
+                        help="markdown = ranked table · json = raw probabilities · "
+                             "bracket = ranked pyramid (champion / final / R16)")
     p_tour.add_argument("--out", "-o", help="also write tournament.md/json here")
     p_tour.add_argument("--verbose", "-v", action="store_true")
     p_tour.set_defaults(func=_cmd_tournament)

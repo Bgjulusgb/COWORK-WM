@@ -119,7 +119,7 @@ class HttpRedditCrawler:
     """Drop-in replacement for MockRedditCrawler — uses Reddit public JSON API."""
 
     def __init__(self) -> None:
-        self._client = httpx.AsyncClient(headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True)
+        self._client = httpx.AsyncClient(headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True, trust_env=False)
         self._breaker = CircuitBreaker()
         self.last_run_stats: dict[str, int] = {"requests": 0, "rate_limited": 0, "blocked": 0, "errors": 0}
 

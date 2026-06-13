@@ -81,7 +81,7 @@ class ArcticShiftCrawler:
     """Fetches historical Reddit posts from Arctic Shift — no API key needed."""
 
     def __init__(self) -> None:
-        self._client = httpx.AsyncClient(headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True)
+        self._client = httpx.AsyncClient(headers=_HEADERS, timeout=_TIMEOUT, follow_redirects=True, trust_env=False)
 
     async def _get_json(self, url: str, params: dict) -> dict | None:
         try:

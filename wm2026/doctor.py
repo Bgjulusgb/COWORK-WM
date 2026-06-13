@@ -36,6 +36,51 @@ _PIPELINE_MODULES = (
     "analysis.calibration", "models_ml.poisson_goals",
     "factors.registry", "data_sources.orchestrator", "config.settings",
 )
+# Free-OSS migration — the three live API keys the project policy supports.
+# Doctor reports their presence but never the values; missing keys downgrade
+# their connector silently (project contract), so this is informational only.
+_API_KEYS = (
+    ("NVIDIA_API_KEY",        "nvidia_api_key",        "build.nvidia.com — LLM aspect sentiment"),
+    ("ODDS_API_KEY",          "odds_api_key",          "the-odds-api.com — live bookmaker odds"),
+    ("FOOTBALL_DATA_API_KEY", "football_data_api_key", "football-data.org — fixture cross-check"),
+)
+
+# Per-connector dry-run: would it go LIVE with the current Settings? Each row is
+# (display_name, use_mock_<flag>, key_required_attr_or_None, note).
+_CONNECTORS = (
+    ("openfootball",  "use_mock_openfootball",  None,                    "GitHub raw JSON — no auth"),
+    ("thesportsdb",   "use_mock_thesportsdb",   None,                    "free public API"),
+    ("openligadb",    "use_mock_openligadb",    None,                    "public API"),
+    ("wikidata",      "use_mock_wikidata",      None,                    "SPARQL endpoint"),
+    ("weather",       "use_mock_weather",       None,                    "open-meteo — no auth"),
+    ("rss_news",      "use_mock_rss",           None,                    "BBC/Guardian/ESPN feeds"),
+    ("clubelo",       "use_mock_clubelo",       None,                    "Elo ratings (free)"),
+    ("football_data", "use_mock_football_data", "football_data_api_key", "needs FOOTBALL_DATA_API_KEY"),
+    ("fbref",         "use_mock_fbref",         None,                    "scraper — ToS risk"),
+    ("understat",     "use_mock_understat",     None,                    "scraper — ToS risk"),
+    ("fotmob",        "use_mock_fotmob",        None,                    "unofficial API"),
+    ("sofascore",     "use_mock_sofascore",     None,                    "unofficial API"),
+    ("transfermarkt", "use_mock_transfermarkt", None,                    "scraper — polite rate-limit"),
+    ("odds_api",      "use_mock_odds_api",      "odds_api_key",          "needs ODDS_API_KEY"),
+    ("reddit",        "use_mock_crawler",       None,                    "old.reddit.com/.json — no auth"),
+    ("nvidia_llm",    None,                     "nvidia_api_key",        "key-gated; use_nvidia_llm default on"),
+)
+
+
+def _connector_status(settings_obj) -> tuple[list[str], int, int]:
+    """Each connector reports ``live``, ``mock`` (toggle on) or ``mock-no-key``."""
+    rows: list[str] = []
+    live = 0
+    for name, mock_flag, key_attr, note in _CONNECTORS:
+        if mock_flag is not None and getattr(settings_obj, mock_flag, False):
+            rows.append(_row("⚪", name, f"mock — toggle {mock_flag.upper()}=true"))
+            continue
+        if key_attr is not None and not getattr(settings_obj, key_attr, ""):
+            rows.append(_row("⚠️", name, f"mock — no {key_attr.upper()}"))
+            continue
+        rows.append(_row("✅", name, f"live — {note}"))
+        live += 1
+    return rows, live, len(_CONNECTORS)
 # Minimaler Schema-Vertrag — wenn eines dieser Felder fehlt, ist der Report
 # nicht "current" (Schema-Bump hat eine Stelle nicht erreicht).
 _SCHEMA_REQUIRED = (
@@ -162,6 +207,32 @@ def run(*, verbose: bool = False) -> int:
     print(f"\n✅ {pipe_total}/{pipe_total} pipeline modules import")
     print()
 
+    # Free-OSS migration — show which of the three live keys are configured.
+    # Connectors still fall back to mock when a key is missing, so this is
+    # informational; no key is a hard error.
+    from config.settings import settings as _s
+    print("## API keys (free / free-tier — Reddit & Twitter not needed)")
+    key_present = 0
+    for env_var, attr, note in _API_KEYS:
+        value = getattr(_s, attr, "") or ""
+        if value:
+            print(_row("✅", env_var, f"set — {note}"))
+            key_present += 1
+        else:
+            print(_row("⚠️", env_var, f"unset → connector stays mock — {note}"))
+    print(f"\n→ {key_present}/{len(_API_KEYS)} live keys configured "
+          f"(missing keys degrade gracefully)")
+    print()
+
+    # Connector dry-run — same settings the orchestrator will read. ✅ = live,
+    # ⚪ = mock by toggle, ⚠️ = mock because key missing. Nothing here is a
+    # hard error; the pipeline keeps running on mock fallback either way.
+    print("## Connectors (would-go-live with current settings)")
+    conn_rows, conn_live, conn_total = _connector_status(_s)
+    print("\n".join(conn_rows))
+    print(f"\n→ {conn_live}/{conn_total} connectors would go live")
+    print()
+
     print("## Schema smoke (mock predict, bootstrap_n=32)")
     ok, msg, js = _smoke_predict(silence_stdout=False)
     if not ok or js is None:
@@ -208,6 +279,13 @@ def main(argv: list[str] | None = None) -> int:
         core_rows, core_missing, core_total = _check_imports("core", _CORE)
         extra_rows, extra_missing, extra_total = _import_extras()
         pipe_rows, pipe_missing, pipe_total = _check_imports("pipe", _PIPELINE_MODULES)
+        # Read the connector/key status BEFORE the smoke predict: the smoke runs
+        # the pipeline in mock mode, which calls apply_runtime_profile("mock")
+        # and flips every USE_MOCK_* flag to True on the global settings — so
+        # reading the status afterwards would always report 0 live connectors.
+        from config.settings import settings as _s
+        keys = {env: bool(getattr(_s, attr, "")) for env, attr, _ in _API_KEYS}
+        _, conn_live, conn_total = _connector_status(_s)
         ok, msg, js = (True, "skipped", None)
         if core_missing == 0 and pipe_missing == 0:
             ok, msg, js = _smoke_predict(silence_stdout=True)
@@ -218,6 +296,9 @@ def main(argv: list[str] | None = None) -> int:
             "smoke_ok": bool(ok),
             "smoke_msg": msg,
             "schema_version": (js or {}).get("schema_version"),
+            "api_keys_present": keys,
+            "connectors_live": conn_live,
+            "connectors_total": conn_total,
         }
         print(_json.dumps(status, indent=2, ensure_ascii=False))
         if core_missing:

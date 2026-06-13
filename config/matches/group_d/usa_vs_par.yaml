@@ -4,8 +4,8 @@ match:
   group: D
   match_number: 4
   phase: group_stage
-  kickoff_utc: '2026-06-13T01:00:00Z'
-  venue: SoFi Stadium, Inglewood (Los Angeles, CA)
+  kickoff_utc: '2026-06-12T18:00:00Z'
+  venue: AT&T Stadium, Dallas (Arlington, Texas)
 teams:
   home:
     name: United States
@@ -16,10 +16,10 @@ teams:
     avg_xg_season: 1.55
     avg_xg_conceded: 1.2
     form_last5:
-    - L
     - W
     - L
-    - L
+    - D
+    - W
     - W
     world_ranking: 17
   away:
@@ -31,10 +31,10 @@ teams:
     avg_xg_season: 1.28
     avg_xg_conceded: 1.35
     form_last5:
-    - W
-    - W
-    - W
+    - D
     - L
+    - W
+    - D
     - L
     world_ranking: 35
 reddit_sources:

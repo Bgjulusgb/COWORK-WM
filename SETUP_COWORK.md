@@ -50,7 +50,7 @@ WM2026_FORCE_BOOTSTRAP=1 bash .claude/hooks/session-start.sh
 
 ---
 
-## 2. Die 11 Skills — was wann
+## 2. Die 13 Skills — was wann
 
 | Skill | Wann triggern? |
 |---|---|
@@ -63,8 +63,10 @@ WM2026_FORCE_BOOTSTRAP=1 bash .claude/hooks/session-start.sh
 | **`inspect-data`** | "Der JSON ist zu groß", "wie spare ich Tokens?", `--compact` / `summary` / `--charts-external` |
 | **`compare-runs`** | "Wie viel hat das Override bewegt?", "Bivariate vs default", "vor/nach Kalibrierung" |
 | **`tournament-sim`** | "Wer wird Weltmeister?", "Achtelfinal-Chance Gruppe X?" |
+| **`tournament-viz`** | "Zeig die Bracket", "wer kommt am wahrscheinlichsten ins Finale?" |
 | **`calibrate-offline`** | "Ich habe ein historisches CSV", "kalibriere besser" |
 | **`tune-models`** | "Optimiere Blend-Gewichte", "RPS-Tuning" |
+| **`backtest-results`** | "Wie gut war meine Prognose?", "ROI letzter X Spiele?", "p5-Filter validieren" |
 
 Skills sind in **`.claude/skills/<name>/SKILL.md`** und werden von Claude Code
 **automatisch erkannt**, sobald die Beschreibung zum User-Intent passt.
@@ -122,20 +124,26 @@ Der Quant-Analyst-Agent:
 
 ## 6. Optionale Live-Modus-Keys (zero-config möglich)
 
-Ohne API-Keys läuft alles trotzdem — Cowork-Auftrag fordert Web-Search-Werte
-ein. Mit Keys ist es bequemer:
+**Drei** Keys — alle Free-Tier, alle Projekt-Policy "open / frei". Ohne Keys
+läuft alles trotzdem: jeder Connector degradiert sauber auf seinen Mock und
+der Cowork-Auftrag listet die offenen Slices auf.
 
 ```bash
 cp .env.example .env
 # Editiere .env:
-#   ODDS_API_KEY=…
-#   FOOTBALL_DATA_API_KEY=…
-#   REDDIT_CLIENT_ID=…
-#   REDDIT_CLIENT_SECRET=…
-#   OPENWEATHER_API_KEY=…
+#   ODDS_API_KEY=…          # the-odds-api.com (500 req/Monat)
+#   FOOTBALL_DATA_API_KEY=… # football-data.org (10 req/min)
+#   NVIDIA_API_KEY=…        # build.nvidia.com (LLM-Aspekt-Sentiment)
 ```
 
-Free-Tier-Endpunkte reichen für ein Spiel pro Sitzung.
+> **Reddit:** kein Account / Key nötig. Der Crawler liest den öffentlichen
+> `old.reddit.com/.json`-Endpunkt (höflich gedrosselt). Die Reddit-OAuth-
+> Felder in `.env.example` sind eine optionale authentifizierte Variante.
+>
+> **Twitter/X:** ist abgeschaltet (paid v2-API, Projekt-Policy: free only).
+
+`python -m wm2026.cli doctor` zeigt eine eigene "API keys"-Sektion mit ✅/⚠️
+pro Key, sodass du auf einen Blick siehst, was live vs. mock laufen wird.
 
 ---
 

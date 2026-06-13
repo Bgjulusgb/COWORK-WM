@@ -8,11 +8,11 @@ description: Parse a wm2026 prediction report (JSON / Markdown / HTML) and produ
 Die Pipeline schreibt drei Artefakte nach `reports/<match_id>.{json,md,html}`.
 Das **JSON** ist die maschinenlesbare Wahrheit — alles andere ist Rendering.
 
-## 1. Report-Schema-Übersicht (schema_version 1.4 — additiv zu 1.3: `overrides_applied`, `research_log`, Divergenz-Warnung)
+## 1. Report-Schema-Übersicht (schema_version 1.3)
 
 ```python
 {
-  "schema_version": "1.2",
+  "schema_version": "1.3",
   "match_id": "wm2026_groupa_kor_vs_cze",
   "match": { "home": "...", "away": "...", "stage": "...", "kickoff": "..." },
   "mode": "live|mock",

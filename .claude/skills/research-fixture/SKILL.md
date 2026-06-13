@@ -49,16 +49,25 @@ Schema (minimal — alles optional, leere Felder werden ignoriert):
       "avg_xg_conceded": 1.18,
       "elo": 1745,
       "fifa_rank": 22,
-      "last5_results": ["W", "W", "D", "L", "W"]
+      "last5_results": ["W", "W", "D", "L", "W"],
+      "last5_xg_for": [1.8, 2.1, 1.2, 0.9, 1.6],
+      "last5_xg_against": [0.9, 1.1, 1.2, 1.7, 0.8],
+      "injuries": [{"name": "Player X", "role": "CM", "status": "out"}],
+      "suspensions": []
     },
     "away": { "...": "..." }
   },
-  "match": { "kickoff_utc": "2026-06-12T19:00:00Z", "venue": "BMO Field, Toronto" },
   "weather": {
     "temp_c": 22,
-    "wind_kmh": 8,
-    "precipitation_mm": 0.5,
-    "humidity_pct": 76
+    "wind_kph": 8,
+    "precip_pct": 30,
+    "altitude_m": 1566
+  },
+  "context": {
+    "rest_days_home": 4,
+    "rest_days_away": 5,
+    "travel_km_home": 9800,
+    "travel_km_away": 11200
   },
   "sentiment": {
     "home_polarity": 0.18,
@@ -66,15 +75,12 @@ Schema (minimal — alles optional, leere Felder werden ignoriert):
     "n_posts_home": 124,
     "n_posts_away": 87
   },
-  "_research_log": [
+  "sources": [
     {"slice": "odds", "value": "2.60/3.05/3.00", "url": "https://…", "fetched_at": "2026-06-11T21:00:00Z"},
     {"slice": "xg_home", "value": 1.42, "url": "https://fbref.com/…", "fetched_at": "2026-06-11T21:00:00Z"}
   ]
 }
 ```
-
-
-> **Unterstützte Keys** (`wm2026/context.py::apply_overrides`): `teams.{home,away}.{elo, fifa_rank, avg_xg_season, avg_xg_conceded, last5_results}`, `match.{kickoff_utc, venue}`, `weather.{temp_c, wind_kmh|wind_kph, precipitation_mm|precip_mm, humidity_pct|humidity}`, `xg`/`elo` (Altform), `sentiment`. `_research_log` wird unverändert ins Report-JSON (`research_log`, Schema 1.4) durchgereicht. Unbekannte Keys werden ignoriert — Verletzungen/Sperren qualitativ über `avg_xg_season` einarbeiten.
 
 ## 4. Re-Run mit Overrides
 

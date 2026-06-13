@@ -32,6 +32,7 @@ _MOCK_FLAGS = (
     "use_mock_fotmob",
     "use_mock_sofascore",
     "use_mock_transfermarkt",
+    "use_mock_odds_api",
 )
 
 
@@ -145,15 +146,6 @@ def apply_overrides(ctx: FactorContext, overrides: dict[str, Any] | None) -> lis
          "weather": {"temp_c": _, "wind_kmh": _, "precipitation_mm": _, "humidity_pct": _},
          "sentiment": {"sample_size": _, "home_sentiment": _, …}}
 
-    Zusätzlich (additiv, Cowork v3) wird das ``research-fixture``-Skill-Schema
-    akzeptiert — beide Formen dürfen gemischt werden::
-
-        {"teams": {"home": {"elo": _, "fifa_rank": _, "avg_xg_season": _,
-                            "avg_xg_conceded": _, "last5_results": ["W", …]},
-                   "away": {…}},
-         "weather": {"wind_kph": _, "precip_mm": _, "humidity": _},   # aliases
-         "match":   {"kickoff_utc": "…", "venue": "…"}}
-
     Returns the list of applied keys (for the report + logging).
     """
     if not overrides:
@@ -163,42 +155,6 @@ def apply_overrides(ctx: FactorContext, overrides: dict[str, Any] | None) -> lis
 
     def _stamp(key: str) -> None:
         ctx.provenance[key] = {"source": "claude-research", "mode": "research", "fetched_at": None}
-
-    # ── Cowork v3: research-fixture-Skill-Schema (teams.* / match.*) ─────────
-    # Mapping Skill-Feld → YAML-Feld. Kept additive: unknown keys are ignored.
-    _TEAM_FIELD_MAP = {
-        "elo": ("elo_rating", float),
-        "elo_rating": ("elo_rating", float),
-        "fifa_rank": ("world_ranking", int),
-        "world_ranking": ("world_ranking", int),
-        "avg_xg_season": ("avg_xg_season", float),
-        "avg_xg_conceded": ("avg_xg_conceded", float),
-        "last5_results": ("form_last5", list),
-        "form_last5": ("form_last5", list),
-    }
-    t_over = overrides.get("teams")
-    if isinstance(t_over, dict):
-        for side in ("home", "away"):
-            spec = t_over.get(side)
-            if not isinstance(spec, dict):
-                continue
-            team = teams.setdefault(side, {})
-            for src_key, (dst_key, cast) in _TEAM_FIELD_MAP.items():
-                val = spec.get(src_key)
-                if val is None:
-                    continue
-                team[dst_key] = list(val) if cast is list else cast(val)
-                applied.append(f"teams.{side}.{dst_key}")
-                if dst_key in ("avg_xg_season", "avg_xg_conceded"):
-                    _stamp(f"xg_{side}")
-
-    m_over = overrides.get("match")
-    if isinstance(m_over, dict) and isinstance(ctx.config, dict):
-        match_cfg = ctx.config.setdefault("match", {})
-        for key in ("kickoff_utc", "venue"):
-            if m_over.get(key):
-                match_cfg[key] = m_over[key]
-                applied.append(f"match.{key}")
 
     xg = overrides.get("xg")
     if isinstance(xg, dict):
@@ -224,13 +180,9 @@ def apply_overrides(ctx: FactorContext, overrides: dict[str, Any] | None) -> lis
     if isinstance(weather, dict):
         try:
             from data_sources.schemas import WeatherInfo
-            # Canonical keys + research-fixture-Skill aliases (wind_kph == km/h).
-            _ALIASES = {"wind_kph": "wind_kmh", "precip_mm": "precipitation_mm",
-                        "humidity": "humidity_pct"}
-            norm = {(_ALIASES.get(k, k)): v for k, v in weather.items()}
-            fields = {k: norm[k] for k in
+            fields = {k: weather[k] for k in
                       ("temp_c", "humidity_pct", "wind_kmh", "precipitation_mm")
-                      if k in norm and norm[k] is not None}
+                      if k in weather and weather[k] is not None}
             ctx.weather = WeatherInfo(source="claude-research", **fields)
             _stamp("weather")
             applied.append("weather")
@@ -241,6 +193,24 @@ def apply_overrides(ctx: FactorContext, overrides: dict[str, Any] | None) -> lis
     if isinstance(sentiment, dict):
         ctx.sentiment_payload = sentiment
         applied.append("sentiment")
+
+    # Count markets (corners / cards) — λ values from a stats connector or hand-
+    # researched. Stored on ctx.config so the pipeline picks them up without a
+    # dedicated FactorContext field (no schema migration needed).
+    corners = overrides.get("corners")
+    if isinstance(corners, dict) and corners.get("lambda_home") is not None \
+            and corners.get("lambda_away") is not None:
+        ctx.config["corners"] = {
+            "lambda_home": float(corners["lambda_home"]),
+            "lambda_away": float(corners["lambda_away"]),
+        }
+        _stamp("corners")
+        applied.append("corners")
+    cards = overrides.get("cards")
+    if isinstance(cards, dict) and cards.get("lambda_total") is not None:
+        ctx.config["cards"] = {"lambda_total": float(cards["lambda_total"])}
+        _stamp("cards")
+        applied.append("cards")
 
     return applied
 
@@ -266,16 +236,9 @@ def overrides_template(cfg: dict[str, Any]) -> dict[str, Any]:
                     "humidity_pct": None, "_source": None},
         "sentiment": {"sample_size": None, "home_sentiment": None,
                       "away_sentiment": None, "_source": None},
-        # Cowork v3 (research-fixture-Skill-Schema, von apply_overrides ebenfalls
-        # verstanden): Elo/FIFA-Rang/Form pro Team + Kickoff/Venue-Korrektur.
-        "teams": {
-            "home": {"elo": None, "fifa_rank": None,
-                     "last5_results": [], "_source": None},
-            "away": {"elo": None, "fifa_rank": None,
-                     "last5_results": [], "_source": None},
-        },
-        "match": {"kickoff_utc": None, "venue": None, "_source": None},
-        "_research_log": [],
+        # Count markets — only emitted if you research / inject the λ values.
+        "corners": {"lambda_home": None, "lambda_away": None, "_source": None},
+        "cards":   {"lambda_total": None, "_source": None},
     }
 
 

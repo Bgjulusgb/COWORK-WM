@@ -240,6 +240,74 @@ def exact_total_goals(matrix: Any) -> dict[int, float]:
     return {k: float((M * (t == k)).sum()) for k in range(int(t.max()) + 1)}
 
 
+# ── Count markets (corners, cards) — Poisson over/under ───────────────────────
+def _poisson_cdf(k: int, lam: float) -> float:
+    """P(X ≤ k) for X ~ Poisson(lam). Recursive PMF — no scipy needed."""
+    if lam <= 0:
+        return 1.0 if k >= 0 else 0.0
+    if k < 0:
+        return 0.0
+    pmf = float(np.exp(-lam))
+    total = pmf
+    for i in range(1, k + 1):
+        pmf *= lam / i
+        total += pmf
+    return min(1.0, total)
+
+
+def over_under_count(lam: float, line: float) -> dict[str, float]:
+    """Generic Poisson over/under for a count market (corners, cards, shots…).
+
+    ``line`` is the bookmaker line (typically a half-integer like ``8.5``):
+    "over 8.5" means **strictly more than 8**, so ``P(X > floor(line))``. Works
+    for integer lines too — half-push isn't modelled here (rare in count markets).
+    """
+    lam = max(0.0, float(lam))
+    threshold = int(np.floor(float(line)))
+    p_under_eq = _poisson_cdf(threshold, lam)
+    p_over = 1.0 - p_under_eq
+    return {
+        "line": float(line),
+        "over": round(float(p_over), 4),
+        "under": round(float(p_under_eq), 4),
+    }
+
+
+def corners_market(
+    lam_home: float, lam_away: float,
+    *, lines: Sequence[float] = (8.5, 9.5, 10.5, 11.5),
+) -> dict[str, Any]:
+    """Corners over/under board from per-team corner λ.
+
+    Total corners are the sum of two independent Poissons, which is itself
+    Poisson(λ_h + λ_a). λ inputs typically come from a stats connector
+    (sofascore, fbref) or a Cowork override — the pipeline doesn't fetch
+    corner data by default.
+    """
+    lam_total = max(0.0, float(lam_home)) + max(0.0, float(lam_away))
+    return {
+        "lambda_home": round(float(lam_home), 3),
+        "lambda_away": round(float(lam_away), 3),
+        "lambda_total": round(lam_total, 3),
+        "lines": [over_under_count(lam_total, ln) for ln in lines],
+    }
+
+
+def cards_market(
+    lam_total: float,
+    *, lines: Sequence[float] = (3.5, 4.5, 5.5, 6.5),
+) -> dict[str, Any]:
+    """Cards over/under (yellows + reds, bookmaker-standard count of 1 each).
+
+    Many bookmakers count a red card as 2 — pass the appropriately-scaled λ if
+    your source uses the heavier convention.
+    """
+    return {
+        "lambda_total": round(max(0.0, float(lam_total)), 3),
+        "lines": [over_under_count(lam_total, ln) for ln in lines],
+    }
+
+
 def first_goal(matrix: Any, lam_home: float, lam_away: float) -> dict[str, float]:
     """Which side scores first. Time-to-first-goal modelled as competing
     exponentials with rates ∝ (λ_home, λ_away); ``none`` is the no-goal mass
@@ -311,6 +379,9 @@ def derive_all(
     lam_away: float | None = None,
     models: dict[str, Any] | None = None,
     ht_share: float = 0.45,
+    corners_lam_home: float | None = None,
+    corners_lam_away: float | None = None,
+    cards_lam_total: float | None = None,
 ) -> dict[str, Any]:
     """Compute every derived market in one pass.
 
@@ -343,7 +414,7 @@ def derive_all(
     if total_lines is None:
         total_lines = (0.5, 1.5, 2.5, 3.5, 4.5)
 
-    return {
+    out: dict[str, Any] = {
         "double_chance": double_chance(home, draw, away),
         "draw_no_bet": draw_no_bet(home, draw, away),
         "asian_handicap": [asian_handicap(M, ln) for ln in ah_lines],
@@ -359,6 +430,13 @@ def derive_all(
         "first_goal": first_goal(M, lam_home, lam_away),
         "ht_ft": ht_ft(lam_home, lam_away, ht_share=ht_share, models=models),
     }
+    # Count markets are opt-in: only emit them when the caller supplies stats
+    # (no goal-model can derive a corner / card rate on its own).
+    if corners_lam_home is not None and corners_lam_away is not None:
+        out["corners"] = corners_market(corners_lam_home, corners_lam_away)
+    if cards_lam_total is not None:
+        out["cards"] = cards_market(cards_lam_total)
+    return out
 
 
 __all__ = [
@@ -376,5 +454,8 @@ __all__ = [
     "exact_total_goals",
     "first_goal",
     "ht_ft",
+    "over_under_count",
+    "corners_market",
+    "cards_market",
     "derive_all",
 ]

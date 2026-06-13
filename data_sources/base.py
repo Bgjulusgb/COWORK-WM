@@ -79,6 +79,12 @@ class BaseConnector:
                     timeout=settings.datasource_http_timeout_s,
                     headers=self._default_headers(),
                     follow_redirects=True,
+                    # v3.7 — Ignore HTTP(S)_PROXY/ALL_PROXY env vars. Sandboxed
+                    # runners (Cowork, CI) often expose a SOCKS proxy via
+                    # ALL_PROXY=socks5h://… which httpx tries to use and then
+                    # crashes ("the 'socksio' package is not installed").
+                    # We talk to public HTTPS APIs directly anyway.
+                    trust_env=False,
                 )
                 BaseConnector._clients[self.connector_name] = client
         return client
@@ -159,16 +165,7 @@ class BaseConnector:
         return FetchResult(text, "live", fetched_at, self.connector_name)
 
     async def _fetch_with_retry(self, url: str, params: dict | None, *, as_text: bool = False) -> Any | None:
-        # Contract-Härtung (Phase 6.1): AUCH Fehler bei der Client-Konstruktion
-        # (z.B. SOCKS-Proxy ohne socksio, kaputte Env-Proxies) dürfen nie aus dem
-        # Konnektor herauspropagieren — sonst endet der Slice als `error` ohne
-        # Mock-Fallback statt sauber zu degradieren (CLAUDE.md-Contract).
-        try:
-            client = await self._get_client()
-        except Exception as exc:
-            log.warning("ds_client_init_failed",
-                        connector=self.connector_name, error=str(exc))
-            return None
+        client = await self._get_client()
         attempts = max(1, settings.datasource_retry_attempts)
         backoff = settings.datasource_retry_backoff_s
         for attempt in range(1, attempts + 1):

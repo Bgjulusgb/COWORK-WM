@@ -92,7 +92,11 @@ class Settings(BaseSettings):
 
     database_url: str = "sqlite+aiosqlite:///./redditorakel.db"
 
-    use_mock_crawler: bool = True
+    # Free-OSS migration: the Reddit crawler runs credentialless against the
+    # public old.reddit.com/.json endpoint (crawler/http_reddit.py — polite UA,
+    # backoff, circuit-breaker). No account or OAuth key needed, so live is the
+    # default; tests/CI force mock via apply_runtime_profile("mock").
+    use_mock_crawler: bool = False
     use_arctic_shift: bool = False
     use_roberta: bool = False
     # IMPROVE-03: swap the emotion model for a Twitter-trained social-media
@@ -117,14 +121,23 @@ class Settings(BaseSettings):
     rate_limit_post_per_minute: int = 5
     admin_api_key: str = ""
 
-    # EXTEND-02: bookmaker odds integration.
+    # EXTEND-02: bookmaker odds integration. Phase 4 of the free-OSS migration
+    # adds a real connector for the-odds-api.com; the integration goes live
+    # automatically when ``odds_api_key`` is set and ``use_mock_odds_api`` is
+    # False (the default). ``enable_odds_integration`` is the legacy flag for
+    # the older ad-hoc paths; the connector itself only reads the key + mock
+    # toggle. The pipeline uses the fetched odds whenever the CLI didn't pass
+    # ``--odds*`` flags.
     odds_api_key: str = ""
     enable_odds_integration: bool = False
+    use_mock_odds_api: bool = False
 
     # EXTEND-03: H2H data.
     enable_h2h: bool = True
 
-    # EXTEND-01: Twitter/X.
+    # EXTEND-01: Twitter/X. Deprecated — needs the paid v2 Search API; the
+    # project policy is free/open-source sources only. The field stays so a
+    # future key can re-enable it, but the crawler is hard-gated off.
     twitter_bearer_token: str = ""
     enable_twitter_crawler: bool = False
 
@@ -184,9 +197,9 @@ class Settings(BaseSettings):
     use_mock_openfootball: bool = False
     use_mock_thesportsdb: bool = False
     use_mock_openligadb: bool = False
-    # Wikidata domain is not in the existing network allowlist, so the squad
-    # factor stays mocked by default until the user opts in.
-    use_mock_wikidata: bool = True
+    # Wikidata SPARQL is public and auth-free — live by default (free-OSS
+    # migration); the connector degrades to its deterministic mock on failure.
+    use_mock_wikidata: bool = False
 
     # MULTIFACTOR-03: per-factor weights. The ensemble re-normalises whenever
     # a factor reports available=false, so these are *targets*, not hard ratios.
@@ -216,10 +229,12 @@ class Settings(BaseSettings):
     # v3.3 — second ML head (LightGBM); needs models_ml/artifacts/xg_predictor_lgbm.txt.
     factor_weight_ml_lgbm: float = 0.00
 
-    # v3.3 — additional factors. All start dormant or low so the existing
-    # ensemble balance is unchanged until the user activates them via the
-    # Admin-Panel or Optuna tuning artifact.
-    factor_weight_llm_sentiment: float = 0.00      # NVIDIA-LLM aspect sentiment
+    # v3.3 — additional factors. lineup/squad_value/network start dormant so the
+    # existing ensemble balance is unchanged until activated via Admin-Panel or
+    # Optuna artifact. llm_sentiment carries a small live weight (free-OSS
+    # migration): with a NVIDIA key + Reddit text it contributes, without either
+    # it reports available=False and renormalises out — mock output unchanged.
+    factor_weight_llm_sentiment: float = 0.05      # NVIDIA-LLM aspect sentiment
     factor_weight_lineup: float = 0.00             # confirmed lineup vs. season-average
     factor_weight_squad_value: float = 0.00        # Transfermarkt market-value ratio
     factor_weight_network: float = 0.00            # PageRank over match graph
@@ -238,25 +253,34 @@ class Settings(BaseSettings):
     use_mock_clubelo: bool = False
     use_mock_weather: bool = False
     use_mock_rss: bool = False
-    # football-data.org needs a free key; mock until one is provided.
-    use_mock_football_data: bool = True
+    # football-data.org: live by default (free-OSS migration). Without a key the
+    # connector 401s and degrades to mock per the connector contract — set
+    # FOOTBALL_DATA_API_KEY (free tier) to actually go live.
+    use_mock_football_data: bool = False
     football_data_api_key: str = ""
 
-    # v3.3 — new scraper toggles. Mock-first so CI stays green.
-    use_mock_fbref: bool = True
-    use_mock_understat: bool = True
-    use_mock_fotmob: bool = True
-    use_mock_sofascore: bool = True
-    use_mock_transfermarkt: bool = True
+    # v3.3 — scraper toggles. Live by default (free-OSS migration): these scrape
+    # public pages / unofficial endpoints without auth. NOTE the ToS trade-off —
+    # fbref/understat/transfermarkt parse HTML, fotmob/sofascore call
+    # undocumented APIs. Each degrades to its deterministic mock on 4xx/parse
+    # failure; flip USE_MOCK_<NAME>=true to opt a source out entirely.
+    use_mock_fbref: bool = False
+    use_mock_understat: bool = False
+    use_mock_fotmob: bool = False
+    use_mock_sofascore: bool = False
+    use_mock_transfermarkt: bool = False
     # v3.3 — Transfermarkt politeness (HTML scraper).
     transfermarkt_request_gap_s: float = 1.5
     transfermarkt_concurrency: int = 2
 
     # v3.3 — NVIDIA-LLM (build.nvidia.com, OpenAI-compatible /v1/chat/completions).
+    # ON by default (free-OSS migration — the user runs a real key). The scorer's
+    # `available` gate still requires nvidia_api_key, so without a key it stays
+    # silent; mock mode force-disables it via apply_runtime_profile("mock").
     nvidia_api_key: str = ""
     nvidia_llm_model: str = "meta/llama-3.3-70b-instruct"
     nvidia_llm_base_url: str = "https://integrate.api.nvidia.com/v1"
-    use_nvidia_llm: bool = False
+    use_nvidia_llm: bool = True
     llm_max_posts_per_tier: int = 6     # cap LLM token budget per match
     llm_request_budget_per_match: int = 3
     llm_temperature: float = 0.1        # near-deterministic for sentiment scoring

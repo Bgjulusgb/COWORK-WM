@@ -63,12 +63,37 @@ def test_pipeline_runs_on_sample_config():
     assert result["best_value"] is not None     # +EV home line with these odds
 
 
-def test_pipeline_synth_config_no_odds():
+def test_pipeline_synth_no_cli_odds_no_fake_edge():
+    """No fake data → no fake edge. In mock mode the odds connector returns
+    mock-seeded odds, but the pipeline deliberately does NOT adopt them (they
+    are uncorrelated with the model and would manufacture nonsense edges). With
+    no --odds passed, there is no value pick — the honest outcome."""
     cfg = synth_config(home_team="Germany", away_team="Brazil",
                        home_xg=1.7, away_xg=1.6)
     result = _run(cfg)
-    assert result["best_value"] is None         # no odds → no value pick
+    assert result["best_value"] is None         # no real odds → no value pick
     assert result["prediction"].over_25 >= 0.0
+
+
+def test_pipeline_adopts_genuinely_live_odds(monkeypatch):
+    """When the odds connector returns a *live* result, the pipeline adopts it
+    as the edge-table default (so a configured ODDS_API_KEY needs no --odds)."""
+    from data_sources.base import FetchResult
+    from data_sources.odds_api import OddsApiConnector
+
+    async def _live_odds(self, *a, **kw):
+        return FetchResult(
+            {"1x2": [2.10, 3.40, 3.20], "ou_2_5": [1.85, 1.95]},
+            "live", None, "odds_api",
+        )
+
+    monkeypatch.setattr(OddsApiConnector, "get_odds", _live_odds)
+    cfg = synth_config(home_team="Germany", away_team="Brazil",
+                       home_xg=1.7, away_xg=1.6)
+    result = _run(cfg)
+    priced = [r for r in result["edges"]
+              if r["market"] == "1X2" and r.get("decimal_odd") is not None]
+    assert len(priced) == 3                      # live odds populated the table
 
 
 def test_report_json_schema_and_markdown():
@@ -169,8 +194,10 @@ def test_mle_xg_enabled_does_not_crash():
 
 
 def test_report_renders_cowork_assignment_when_odds_missing():
+    """No --odds and only mock-sourced odds (not adopted) → the report asks
+    Claude to research the bookmaker odds."""
     cfg = synth_config(home_team="Spain", away_team="Japan")
-    result = _run(cfg)                            # mock, no odds → odds task fires
+    result = _run(cfg)                            # mock, no real odds → odds task fires
     assert any(t["category"] == "odds" for t in result["claude_tasks"])
     report = build_report(result)
     assert "claude_tasks" in report["json"]

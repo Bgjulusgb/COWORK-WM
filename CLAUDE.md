@@ -17,8 +17,7 @@ python -m wm2026.cli predict --mode mock \
   --match config/matches/group_a/cze_vs_rsa.yaml --odds "2.10/3.40/3.20" --odds-ou "1.85/1.95"
 python debug.py            # exercise every function on mock data (✅/❌ + summary)
 pytest tests/test_wm2026_pipeline.py tests/test_markets.py tests/test_edge_conservative.py \
-       tests/test_backtesting_rps.py tests/test_bivariate_poisson.py tests/test_calibration_offline.py \
-       tests/test_overrides_cowork.py tests/test_sensitivity.py -q
+       tests/test_backtesting_rps.py tests/test_bivariate_poisson.py tests/test_calibration_offline.py -q
 ```
 > **Live is the default; tests/CI/`debug.py` pin `--mode mock`.** In live mode the
 > connectors fan out concurrently and degrade per-source to mock on failure; the
@@ -99,13 +98,11 @@ in `prompts/WM2026_MASTER_PROMPT.md` (Phase 8).
 | Goal models / blend / bootstrap | `models_ml/poisson_goals.py` |
 | MLE attack/defence λ-estimator | `analysis/xg_estimator.py` (gated by `settings.use_mle_xg`) |
 | Tournament Monte-Carlo | `wm2026/tournament.py` (+ `wm2026 tournament` CLI) |
-| Markt-implizite λ-Baseline | `wm2026/market_baseline.py` (`--baseline market`) |
-| Sensitivity / Robustheit | `wm2026/sensitivity.py` (`--sensitivity`, + `tests/test_sensitivity.py`) |
 | Accuracy metrics (Brier/LogLoss/RPS) | `analysis/backtesting.py` |
 | Calibration (isotonic/Platt/market) | `analysis/calibration.py` (+ `scripts/fit_calibration_offline.py`) |
 | A new factor | `factors/<name>_factor.py` + `factors/registry.py` + a weight in `config/settings.py` |
 | CLI flags / `research` subcommand | `wm2026/cli.py` |
-| Cowork overrides injection | `wm2026/context.py` (`apply_overrides`, `overrides_template`) — v3: akzeptiert auch das `research-fixture`-Skill-Schema (`teams.*`, `match.*`, weather-Aliase); `overrides_applied` + `research_log` stehen im Report-JSON (schema 1.4) |
+| Cowork overrides injection | `wm2026/context.py` (`apply_overrides`, `overrides_template`) |
 | Report JSON/Markdown / HTML | `wm2026/report.py` · `wm2026/report_html.py` |
 | Roadmap / next math | `verbesserungsplan.md` |
 
@@ -113,9 +110,7 @@ in `prompts/WM2026_MASTER_PROMPT.md` (Phase 8).
 - Don't commit a real `.env` (only `.env.example`); rotate any leaked key.
 - Don't break the mock path — it's the contract that the repo runs out of the box.
 - Don't present a prediction without its confidence interval, or an edge > 10 %
-  without a sanity-check note. Phase 7 warnt seit schema 1.4 automatisch bei
-  > 10 pp Modell-Markt-Divergenz auf 1X2 (`model-market divergence`) — diese
-  Warnung ist ein hartes Stopp-Signal für jede Edge-Empfehlung.
+  without a sanity-check note.
 
 ## Cowork-Layer (`.claude/`)
 

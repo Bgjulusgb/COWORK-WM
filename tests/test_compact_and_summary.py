@@ -227,7 +227,7 @@ def test_doctor_json_emits_status_dict(capsys):
     assert status["core_missing"] == 0
     assert status["pipeline_missing"] == 0
     assert status["smoke_ok"] is True
-    assert status["schema_version"] == "1.5"
+    assert status["schema_version"] == "1.3"
 
 
 # ── CLI plumbing (subprocess) ─────────────────────────────────────────────────
@@ -265,7 +265,7 @@ def test_cli_summary_reads_gzip(tmp_path):
     # The gzip is a real gzip of the JSON.
     with gzip.open(gz, "rt", encoding="utf-8") as fh:
         js = json.load(fh)
-    assert js["schema_version"] == "1.5"
+    assert js["schema_version"] == "1.3"
     r2 = _cli("summary", str(gz))
     assert r2.returncode == 0
     assert "λ" in r2.stdout or "lambda" in r2.stdout.lower()

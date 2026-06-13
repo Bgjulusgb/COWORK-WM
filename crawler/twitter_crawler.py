@@ -45,7 +45,7 @@ async def fetch_tweets(home_code: str, away_code: str, *, max_results: int = 50)
     }
     headers = {"Authorization": f"Bearer {settings.twitter_bearer_token}"}
 
-    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
+    async with httpx.AsyncClient(timeout=_TIMEOUT, trust_env=False) as client:
         try:
             resp = await client.get(_SEARCH, params=params, headers=headers)
         except Exception as exc:
